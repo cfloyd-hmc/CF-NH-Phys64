@@ -105,37 +105,6 @@ class Expt:
     def particlePositions(self):
         return np.array([p.x for p in self.particles])
     
-    def showAnimation(self, addlTitle=""):
-        fig, ax = plt.subplots()              # create the figure
-        ax.set_xlim(0,self.L)              # and adjust axes limits and labels
-        ax.set_ylim(0,self.L)
-        ax.set_title(self.t)
-        xvar = np.linspace(0.1,self.L-0.1,self.numParticles)
-        points, = ax.plot(xvar,np.ones_like(xvar), 'o')
-        self.updatectr = 0
-        
-        def frame(_):
-            points.set_data(np.transpose(self.particlePositions))
-            title = ax.set_title(addlTitle + "t = {:0.2f}".format(self.t))
-            self.nextFrame()
-            
-            #progress bar! (?)
-            if self.c % self.updateGraphsEvery == 0:
-                x = int(np.floor(8*self.t/self.tmax)+1)
-                print ("[" + "FINISHED!"[:x] + "_________"[x:] + "]", end="\r")
-                #TODO: make & update graphs
-            self.c += 1
-            
-            return points, title 
-
-        #somewhat glitchy display. IDK how best to fix.
-        ani = FuncAnimation(fig, frame, np.arange(self.t,self.tmax,self.dt), 
-                            interval=self.dt*1000/self.animSpeed, blit=True,
-                           repeat=False)
-        print("bouta save animation...")
-        ani.save("particleAnimation.gif")
-        plt.close()
-    
     #idea: makeCopy() function that makes an identical experiment - might be useful to
     #let us go to further times or something? idk
     
@@ -145,10 +114,7 @@ class Expt:
         """
         return [p.KE for p in self.particles]
 
-    def showAnimation1(self, addlTitle=""):
-        """
-        Modified version of showAnimation that creates a histogram of the particles' kinetic energies.
-        """
+    def showAnimation(self, addlTitle=""):
         
         fig, (ax1, ax2) = plt.subplots(1, 2)              # create the figure
         ax1.set_xlim(0,self.L)              # and adjust axes limits and labels

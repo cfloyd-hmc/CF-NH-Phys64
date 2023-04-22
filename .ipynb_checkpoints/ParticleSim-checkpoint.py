@@ -181,3 +181,47 @@ class Expt:
         plt.close()
         print("")
         print("finished animating!")
+        
+        
+    def showAnimation1(self, addlTitle=""):
+        
+        fig, axs = plt.subplot_mosaic(
+            """
+            AABC
+            AADE
+            """)              # create the figure
+        axs['A'].set_xlim(0,self.L)              # and adjust axes limits and labels
+        axs['A'].set_ylim(0,self.L)
+        axs['A'].set_title(self.t)
+        #TODO: change ax2 axes, title
+        HIST_BINS = np.linspace(0, 1000, 100)
+        self.updatectr = 0
+
+        xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
+        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o')
+
+        _, _, bar_container = axs['B'].hist(self.getKEs(), HIST_BINS, lw=1,
+                              ec="yellow", fc="green", alpha=0.5)
+
+        def frame(_):
+            #animate
+            points.set_data(np.transpose(self.particlePositions))
+            title = axs['A'].set_title(addlTitle + "t = {:0.2f}".format(self.t))
+
+            if self.updatectr % self.updateGraphsEvery == 0:
+
+                #histogram
+                n, _ = np.histogram(self.getKEs(), HIST_BINS)
+                for count, rect in zip(n, bar_container.patches):
+                    rect.set_height(count)
+
+                #progress bar
+                x = int(np.floor(32*self.t/self.tmax)+1)
+                print ("[" + "████████████████████████████████"[:x] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
+
+            #update
+            self.nextFrame()
+
+
+            self.updatectr += 1
+            return points, bar_container.patches, title 

@@ -15,22 +15,35 @@ class Disk:
         if self.nDim != len(self.v):
             raise Exception("Dimensions of velocity and position lists do not match.")
         self.q = charge
-        self.COUL_FACTOR = 8.988e9
     
-    def forceFrom(self, other, L):
-        #calculates the force vector on self because of other
-        r = self.x - other.x
+#     def forceFrom(self, other, L):
+#         #calculates the force vector on self because of other
+#         r = self.distFrom(other, L)
+#         return (self.COUL_FACTOR * self.q * other.q) * r / (np.linalg.norm(r)**3)
+    
+    def distFrom(self, other, L):
+        r = self.x - other.x # not to be confused with self.r, the radius of a particle
         r[r > L/2] -= L
         r[r < -L/2] += L
-        return (self.COUL_FACTOR * self.q * other.q) * r / (np.linalg.norm(r)**3)
+        return r
     
-    def advance(self, dt:float, L, F=0):
+    def overlapWith(self, other, L):
+        return self.distFrom(other, L) < (self.r + other.r)
+    
+    def advance(self, dt:float, L, F=0, collidingDisk=False):
         # apply old velocity (update position)
         self.x += self.v * dt
         self.x = self.x % L
         
         # apply force (update velocity)
         self.v += F * (dt / self.m)
+        
+        #fix collision (?)
+        if collidingDisk: #note,this code is definitely unfinished. :)
+            self.resolveCollision(self, collidingDisk)
+    
+    def resolveCollision(self, collidingDisk):
+        self.v *= -1 #this is not great, but it's what we got right now.
     
     #allowing comparisons between disk
     def __lt__(self, other):
@@ -39,6 +52,10 @@ class Disk:
     def __eq__(self, other):
         return self.x[0] == other.x[0]
     
+    #explicitly allows statements like "if p: ..."
+    def __bool__(self):
+        return True
+    
     @property
     def speed(self):
         return np.linalg.norm(self.v)
@@ -46,11 +63,12 @@ class Disk:
     @property
     def KE(self):
         return (1/2)*self.m*(self.speed**2)
+    
 
 class Expt:
     def __init__(self, particles, dt:float=0.1, t_0:float=0, 
                  tmax:float=15, L:float=200, animSpeed:float=1,
-                updateGraphsEvery:int=5):
+                updateGraphsEvery:int=5, doCollisions=True):
         # pPositions example: [ [1, 3], [2, 2] ]: two particles, at (1,3) and (2,2)
         
         # set time variables
@@ -59,6 +77,8 @@ class Expt:
         self.dt = dt
         self.animSpeed = animSpeed
         self.updateGraphsEvery = updateGraphsEvery
+        self.doCollisions = doCollisions
+        self.COUL_FACTOR = 8.988e9
         
         # make the particle list
         self.particles = np.asarray(particles)
@@ -73,8 +93,9 @@ class Expt:
         if p1 == p2: # in future, maybe change to if p1.friendsWith(p2) and
                      # have particles have a friends list who they don't push
             return 0
-        else:
-            return self.particles[p1].forceFrom(self.particles[p2], self.L)
+        r = self.particles[p1].distFrom(self.particles[p2], self.L)
+        F = (self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q) * r / (np.linalg.norm(r)**3)
+        return F
     
     def nextFrame(self):
         
@@ -84,8 +105,7 @@ class Expt:
         #calculate all particles' interactions
         for p1 in range(self.numParticles):
             for p2 in range(self.numParticles):
-                if p1 != p2:
-                    forces[p1] += self.forceBetween(p1, p2)
+                forces[p1] += self.forceBetween(p1, p2)
         
         #move particles and apply forces afterwards, to allow simultaneity
         forceIter = iter(forces)
@@ -109,9 +129,7 @@ class Expt:
     #let us go to further times or something? idk
     
     def getKEs(self):
-        """
-        Returns a list of the particles' potential energies in the current frame.
-        """
+        #Returns a list of the particles' potential energies in the current frame.
         return [p.KE for p in self.particles]
 
     def showAnimation(self, addlTitle=""):
@@ -144,7 +162,8 @@ class Expt:
                 
                 #progress bar
                 x = int(np.floor(32*self.t/self.tmax)+1)
-                print ("[" + "████████████████████████████████"[:x] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
+                print ("[" + "████████████████████████████████"[:x] + "▄"*(x<32) + 
+                       "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
             
             #update
             self.nextFrame()

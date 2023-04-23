@@ -43,8 +43,19 @@ class Disk:
             self.resolveCollision(self, collidingDisk)
     
     def resolveCollision(self, collidingDisk):
-        self.v *= -1 #this is not great, but it's what we got right now.
-    
+        totalMass = self.m + collidingDisk.m
+        
+        # Initial velocities of the two disks
+        u1 = self.v
+        u2 = collidingDisk.v
+        
+        self.v = ((self.m - collidingDisk.m) / totalMass) * u1 + (2 * collidingDisk.m / totalMass) * u2
+        
+        collidingDisk.v = (2 * self.m / totalMass) * u1 + ((collidingDisk.m - self.m) / totalMass) * u2
+        
+        #self.v *= -1 #this is not great, but it's what we got right now.
+        
+        
     #allowing comparisons between disk
     def __lt__(self, other):
         return self.x[0] < other.x[0]
@@ -139,16 +150,27 @@ class Expt:
         
         #calculate forces in advance
         forces = np.zeros_like(self.particlePositions)
+        collisDict = {}
         
         #calculate all particles' interactions
         for p1 in range(self.numParticles):
             for p2 in range(self.numParticles):
                 forces[p1] += self.forceBetween(p1, p2)
+                
+                if p1.overlapWith(p2, self.L):
+                    collisDict[p1] = p2
         
         #move particles and apply forces afterwards, to allow simultaneity
         forceIter = iter(forces)
         for p in self.particles:
-            p.advance(self.dt, self.L, next(forceIter))
+            if p in collisDict:
+                p.advance(self.dt, self.L, next(forceIter), collistDict[p])
+                try:
+                    del collisDict[collisDict[p]]
+                except:
+                    pass
+            else:
+                p.advance(self.dt, self.L, next(forceIter))
         self.t += self.dt
     
     @property

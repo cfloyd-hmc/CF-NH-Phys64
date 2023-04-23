@@ -225,3 +225,14 @@ class Expt:
 
             self.updatectr += 1
             return points, bar_container.patches, title 
+
+        #somewhat glitchy display. IDK how best to fix.
+        ani = FuncAnimation(fig, frame, np.arange(self.t,self.tmax,self.dt), 
+                            interval=self.dt*1000/self.animSpeed, blit=True,
+                           repeat=False)
+        print("bouta save animation...")
+        ani.save("particleAnimation.gif")
+        plt.close()
+        print("")
+        print("finished animating!")
+        

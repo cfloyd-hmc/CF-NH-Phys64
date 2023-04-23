@@ -68,17 +68,18 @@ class Disk:
 class Expt:
     def __init__(self, particles, dt:float=0.1, t_0:float=0, 
                  tmax:float=15, L:float=200, animSpeed:float=1,
-                updateGraphsEvery:int=5, doCollisions=True):
+                updateGraphsEvery:int=5, doCollisions=True, potentialType="Coul"):
         # pPositions example: [ [1, 3], [2, 2] ]: two particles, at (1,3) and (2,2)
+        
+        #set member variables
+        self.updateGraphsEvery = updateGraphsEvery
+        self.doCollisions = doCollisions
         
         # set time variables
         self.t = t_0
         self.tmax = tmax
         self.dt = dt
         self.animSpeed = animSpeed
-        self.updateGraphsEvery = updateGraphsEvery
-        self.doCollisions = doCollisions
-        self.COUL_FACTOR = 8.988e9
         
         # make the particle list
         self.particles = np.asarray(particles)
@@ -87,15 +88,52 @@ class Expt:
         
         #make the box bounds
         self.L = L
+        
+        #set potential energy function depending on user input
+        if potentialType == "Coul":
+            self.COUL_FACTOR = 8.988e9
+            self.forceBetween = lambda p1, p2: self._CoulForce(p1, p2)
+            self.potentialBetween = lambda p1, p2: self._CoulPotential(p1, p2)
+        elif potentialType == "Lenn":
+            self.eps = 500 #epsilon, from Lennard-Jones formula
+            self.sig = 15 #sigma, from Lennard-Jones formula
+            self.forceBetween = lambda p1, p2: self._LennForce(p1, p2)
+            self.potentialBetween = lambda p1, p2: self._LennPotential(p1, p2)
+        else:
+            print("just so you know, forces and potential energies are zero. Hope you wanted that.")
+            self.forceBetween = lambda p1, p2: 0
+            self.potentialBetween = lambda p1, p2: 0
     
-    def forceBetween(self, p1, p2):
+    def _CoulForce(self, p1, p2): #TODO: change code to not need force between particles. 
+                #This will also allow user-definined potential functions, which would be great!
         #given two particle IDs/indices, returns the force between them
         if p1 == p2: # in future, maybe change to if p1.friendsWith(p2) and
                      # have particles have a friends list who they don't push
             return 0
-        r = self.particles[p1].distFrom(self.particles[p2], self.L)
-        F = (self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q) * r / (np.linalg.norm(r)**3)
+        rVec = self.particles[p1].distFrom(self.particles[p2], self.L)
+        r = np.linalg.norm(rVec)
+        F = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q * rVec / r**3
         return F
+    def _CoulPotential(self, p1, p2):
+        #given two particle IDs/indices, returns the potential between them
+        if p1 == p2:
+            return 0
+        r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
+        V = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q / r
+        return V
+    def _LennForce(self, p1, p2):
+        if p1==p2:
+            return 0
+        rVec = self.particles[p1].distFrom(self.particles[p2], self.L)
+        r = np.linalg.norm(rVec)
+        F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
+        return F
+    def _LennPotential(self, p1, p2):
+        if p1 == p2:
+            return 0
+        r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
+        V = -4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
+        return V
     
     def nextFrame(self):
         
@@ -115,11 +153,31 @@ class Expt:
     
     @property
     def totalKE(self):
-        return sum(p.KE for p in self.particles)
+        return sum(self.getKEs())
     
     @property
     def avgKE(self):
         return self.totalKE / self.numParticles
+
+    @property
+    def totalPE(self):
+        PE = 0
+        for p1 in range(self.numParticles):
+            for p2 in range(self.numParticles):
+                PE += self.potentialBetween(p1, p2) / 2 #divide by 2 becaue double-counting
+        return PE
+    
+    @property
+    def avgPE(self):
+        return self.totalPE / self.numParticles
+    
+    @property
+    def totalE(self):
+        return self.totalKE + self.totalPE
+    
+    @property
+    def avgE(self):
+        return self.totalE / self.numParticles
     
     @property
     def particlePositions(self):
@@ -162,7 +220,7 @@ class Expt:
                 
                 #progress bar
                 x = int(np.floor(32*self.t/self.tmax)+1)
-                print ("[" + "████████████████████████████████"[:x] + "▄"*(x<32) + 
+                print ("[" + "█████████████████████████████████"[:x] + "▄"*(x<=32) + 
                        "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
             
             #update
@@ -185,6 +243,8 @@ class Expt:
         
     def showAnimation1(self, addlTitle=""):
         
+        print("initializing experiment... ")
+        
         fig, axs = plt.subplot_mosaic(
             """
             AABC
@@ -194,7 +254,7 @@ class Expt:
         axs['A'].set_ylim(0,self.L)
         axs['A'].set_title(self.t)
         #TODO: change ax2 axes, title
-        HIST_BINS = np.linspace(0, 1000, 100)
+        HIST_BINS = np.linspace(0, 1000, 20)
         self.updatectr = 0
 
         xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
@@ -203,13 +263,13 @@ class Expt:
         _, _, bar_container = axs['B'].hist(self.getKEs(), HIST_BINS, lw=1,
                               ec="yellow", fc="green", alpha=0.5)
 
+        print("starting simulation... ")
         def frame(_):
             #animate
             points.set_data(np.transpose(self.particlePositions))
             title = axs['A'].set_title(addlTitle + "t = {:0.2f}".format(self.t))
 
             if self.updatectr % self.updateGraphsEvery == 0:
-
                 #histogram
                 n, _ = np.histogram(self.getKEs(), HIST_BINS)
                 for count, rect in zip(n, bar_container.patches):
@@ -217,8 +277,8 @@ class Expt:
 
                 #progress bar
                 x = int(np.floor(32*self.t/self.tmax)+1)
-                print ("[" + "████████████████████████████████"[:x] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
-
+                print ("[" + "████████████████████████████████"[:x-1] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r") #idea: create a dynamically sized progress bar depending on total number of steps that'll be taken, including maybe a 2D one that fills up intelligently :)
+                
             #update
             self.nextFrame()
 
@@ -226,13 +286,12 @@ class Expt:
             self.updatectr += 1
             return points, bar_container.patches, title 
 
+        
         #somewhat glitchy display. IDK how best to fix.
         ani = FuncAnimation(fig, frame, np.arange(self.t,self.tmax,self.dt), 
                             interval=self.dt*1000/self.animSpeed, blit=True,
                            repeat=False)
-        print("bouta save animation...")
         ani.save("particleAnimation.gif")
+        print("\nfinished animating!")
         plt.close()
-        print("")
-        print("finished animating!")
         

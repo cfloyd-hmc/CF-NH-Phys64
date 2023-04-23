@@ -43,8 +43,19 @@ class Disk:
             self.resolveCollision(self, collidingDisk)
     
     def resolveCollision(self, collidingDisk):
-        self.v *= -1 #this is not great, but it's what we got right now.
-    
+        totalMass = self.m + collidingDisk.m
+        
+        # Initial velocities of the two disks
+        u1 = self.v
+        u2 = collidingDisk.v
+        
+        self.v = ((self.m - collidingDisk.m) / totalMass) * u1 + (2 * collidingDisk.m / totalMass) * u2
+        
+        collidingDisk.v = (2 * self.m / totalMass) * u1 + ((collidingDisk.m - self.m) / totalMass) * u2
+        
+        #self.v *= -1 #this is not great, but it's what we got right now.
+        
+        
     #allowing comparisons between disk
     def __lt__(self, other):
         return self.x[0] < other.x[0]

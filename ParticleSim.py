@@ -112,16 +112,27 @@ class Expt:
         
         #calculate forces in advance
         forces = np.zeros_like(self.particlePositions)
+        collisDict = {}
         
         #calculate all particles' interactions
         for p1 in range(self.numParticles):
             for p2 in range(self.numParticles):
                 forces[p1] += self.forceBetween(p1, p2)
+                
+                if p1.overlapWith(p2, self.L):
+                    collisDict[p1] = p2
         
         #move particles and apply forces afterwards, to allow simultaneity
         forceIter = iter(forces)
         for p in self.particles:
-            p.advance(self.dt, self.L, next(forceIter))
+            if p in collisDict:
+                p.advance(self.dt, self.L, next(forceIter), collistDict[p])
+                try:
+                    del collisDict[collisDict[p]]
+                except:
+                    pass
+            else:
+                p.advance(self.dt, self.L, next(forceIter))
         self.t += self.dt
     
     @property

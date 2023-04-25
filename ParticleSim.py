@@ -3,14 +3,27 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from functools import total_ordering
 
+#TODO: 
+#
+#change distFrom to have a better name
+#
+#
+#
+#
+
+
 @total_ordering #allows us to only implement lt and eq, imply gt, etc.
 class Disk:
-    def __init__(self, x:np.ndarray, v:np.ndarray, mass:float=3, 
-                 radius:float=.5, charge:float=1.602e-3):
+    def __init__(self, x:np.ndarray, v:np.ndarray, a:np.ndarray=False, 
+                 mass:float=3, radius:float=.5, charge:float=1.602e-3):
         self.m = mass
         self.r = radius
         self.x = np.asarray(x) #x example: array([2, 4])
         self.v = np.asarray(v) #v example: array([1.2, -2])
+        if a:
+            self.a = np.asarray(a)
+        else: #by default, acceleration initializes to zeros
+            self.a = np.zeros_like(x)
         self.nDim = len(self.x)
         if self.nDim != len(self.v):
             raise Exception("Dimensions of velocity and position lists do not match.")
@@ -30,13 +43,17 @@ class Disk:
     def overlapWith(self, other, L):
         return self.distFrom(other, L) < (self.r + other.r)
     
-    def advance(self, dt:float, L, F=0, collidingDisk=False):
-        # apply old velocity (update position)
-        self.x += self.v * dt
+    def advance(self, dt:float, L, F, collidingDisk=False):
+        
+        # update position
+        self.x += (self.v)*dt + (self.a/2)*(dt**2)
         self.x = self.x % L
         
-        # apply force (update velocity)
-        self.v += F * (dt / self.m)
+        # update acceleration
+        self.a = F/self.m
+        
+        # update velocity
+        self.v += (self.a/2)*dt
         
         #fix collision (?)
         if collidingDisk: #note,this code is definitely unfinished. :)
@@ -152,12 +169,11 @@ class Expt:
         forces = np.zeros_like(self.particlePositions)
         collisDict = {}
         
-        if self.doCollisions:
-            #calculate all particles' collisions
-            for p1 in range(self.numParticles):
-                for p2 in range(self.numParticles):
-                    forces[p1] += self.forceBetween(p1, p2)
-
+        #calculate all particles' collisions
+        for p1 in range(self.numParticles):
+            for p2 in range(self.numParticles):
+                forces[p1] += self.forceBetween(p1, p2)
+                if self.doCollisions:
                     if p1.overlapWith(p2, self.L):
                         collisDict[p1] = p2
         

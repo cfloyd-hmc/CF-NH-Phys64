@@ -28,7 +28,7 @@ class Disk:
         return r
     
     def overlapWith(self, other, L):
-        return self.distFrom(other, L) < (self.r + other.r)
+        return np.linalg.norm(self.distFrom(other, L)) < (self.r + other.r)
     
     def advance(self, dt:float, L, F=0, collidingDisk=False):
         # apply old velocity (update position)
@@ -125,6 +125,7 @@ class Expt:
         r = np.linalg.norm(rVec)
         F = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q * rVec / r**3
         return F
+    
     def _CoulPotential(self, p1, p2):
         #given two particle IDs/indices, returns the potential between them
         if p1 == p2:
@@ -132,6 +133,7 @@ class Expt:
         r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
         V = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q / r
         return V
+    
     def _LennForce(self, p1, p2):
         if p1==p2:
             return 0
@@ -139,12 +141,14 @@ class Expt:
         r = np.linalg.norm(rVec)
         F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
         return F
+   
     def _LennPotential(self, p1, p2):
         if p1 == p2:
             return 0
         r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
         V = -4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
         return V
+    
     
     def nextFrame(self):
         
@@ -157,9 +161,20 @@ class Expt:
             for p1 in range(self.numParticles):
                 for p2 in range(self.numParticles):
                     forces[p1] += self.forceBetween(p1, p2)
-
-                    if p1.overlapWith(p2, self.L):
-                        collisDict[p1] = p2
+                    
+#                     print(self.particles[p1])
+#                     print(self.particles[p1].overlapWith(self.particles[p2], self.L))
+#                     print(self.particles[p1].distFrom(self.particles[p2], self.L))
+                    
+                    if self.particles[p1].overlapWith(self.particles[p2], self.L):
+                        collisDict[p1] = self.particles[p2]
+            
+#             for p1 in self.particles:
+#                 for p2 in self.particles:
+#                     forces[p1] += self.forceBetween(p1, p2)
+                
+#                     if p1.overlapWith(p2, self.L):
+#                         collisDict[p1] = p2
         
         #move particles and apply forces afterwards, to allow simultaneity
         forceIter = iter(forces)

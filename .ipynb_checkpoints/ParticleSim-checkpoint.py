@@ -27,8 +27,10 @@ class Disk:
         r[r < -L/2] += L
         return r
     
+    
     def overlapWith(self, other, L):
         return np.linalg.norm(self.distFrom(other, L)) < (self.r + other.r)
+    
     
     def advance(self, dt:float, L, F=0, collidingDisk=False):
         # apply old velocity (update position)
@@ -41,6 +43,19 @@ class Disk:
         #fix collision (?)
         if collidingDisk: #note,this code is definitely unfinished. :)
             self.resolveCollision(self, collidingDisk)
+    
+    
+    def advance1(self, dt:float, L, F=0, collidingDisk=False):
+        """
+        Updates the position and velocity of the current particle.
+        """
+        # Apply old velocity (update position)
+        self.x += self.v * dt
+        self.x = self.x % L
+        
+        # Apply force (update velocity)
+        self.v += F * (dt / self.m)
+        
     
     def resolveCollision(self, collidingDisk):
         totalMass = self.m + collidingDisk.m
@@ -55,7 +70,7 @@ class Disk:
         
         #self.v *= -1 #this is not great, but it's what we got right now.
         
-        
+    
     #allowing comparisons between disk
     def __lt__(self, other):
         return self.x[0] < other.x[0]
@@ -188,6 +203,60 @@ class Expt:
             else:
                 p.advance(self.dt, self.L, next(forceIter))
         self.t += self.dt
+    
+    
+    def resolveCollision1(p1, p2):
+        """
+        Adjusts the positions and velocities of two particles that have just collided.
+        """
+        
+        totalMass = p1.m + p2.m
+        
+        # Initial velocities of the two disks
+        u1 = p1.v
+        u2 = p2.v
+        
+        # Move disks so that they no longer overlap
+        self.adjustPositions(p1, p2)
+        
+        # Update the velocities
+        p1.v = ((p1.m - p2.m) / totalMass) * u1 + (2 * p2.m / totalMass) * u2
+        
+        p2.v = (2 * p1.m / totalMass) * u1 + ((p2.m - p1.m) / totalMass) * u2
+    
+    
+    def adjustPositions(p1, p2, collisDict):
+        """
+        Adjusts the positions of colliding particles so that they no longer overlap.
+        """
+        
+        # NEED A CASE TO HANDLE MULTIPLE SIMULTANEOUS COLLISIONS
+        
+        # Vector from the center of p1 to the center of p2
+        rVect = p2.x - p1.x
+        
+        # Distance from the center of p1 to the center of p2
+        d = np.linalg.norm(rVect)        # Confirm this is equivalent to np.linalg.norm(p1.distFrom(p2, self.L))
+        
+        # Distance by which p1 and p2 overlap
+        error = p1.r + p2.r - d
+        
+        # Angle between p1 and p2's position vectors
+        θ = np.arctan(rVect)
+        
+        # Vector of form [cosθ, sinθ], where θ is the angle between rVect and the horizontal
+        cosSin = [rVect[0] / d, rVect[1] / d]
+        
+        p1.x -= (error / 2) * cosSin
+        p2.x += (error / 2) * cosSin
+        
+        
+        if p1.overlapWith(p2, self.L):
+            self.adjustPositions(p1, p2)
+        
+        #np.linalg.norm(p1.distFrom(p2, self.L))
+        
+        
     
     @property
     def totalKE(self):

@@ -6,7 +6,7 @@ from functools import total_ordering
 @total_ordering #allows us to only implement lt and eq, imply gt, etc.
 class Disk:
     def __init__(self, x:np.ndarray, v:np.ndarray, mass:float=3, 
-                 radius:float=.5, charge:float=1.602e-3):
+                 radius:float=5.0, charge:float=1.602e-3):
         self.m = mass
         self.r = radius
         self.x = np.asarray(x) #x example: array([2, 4])
@@ -27,8 +27,10 @@ class Disk:
         r[r < -L/2] += L
         return r
     
+    
     def overlapWith(self, other, L):
-        return self.distFrom(other, L) < (self.r + other.r)
+        return np.linalg.norm(self.distFrom(other, L)) < (self.r + other.r)
+    
     
     def advance(self, dt:float, L, F=0, collidingDisk=False):
         # apply old velocity (update position)
@@ -40,7 +42,21 @@ class Disk:
         
         #fix collision (?)
         if collidingDisk: #note,this code is definitely unfinished. :)
-            self.resolveCollision(self, collidingDisk)
+            self.resolveCollision(collidingDisk)
+    
+    
+    # NIKOLAS'S TEST CODE
+    def advance1(self, dt:float, L, F=0):
+        """
+        Updates the position and velocity of the current particle.
+        """
+        # Apply old velocity (update position)
+        self.x += self.v * dt
+        self.x = self.x % L
+        
+        # Apply force (update velocity)
+        self.v += F * (dt / self.m)
+        
     
     def resolveCollision(self, collidingDisk):
         totalMass = self.m + collidingDisk.m
@@ -55,7 +71,7 @@ class Disk:
         
         #self.v *= -1 #this is not great, but it's what we got right now.
         
-        
+    
     #allowing comparisons between disk
     def __lt__(self, other):
         return self.x[0] < other.x[0]
@@ -125,6 +141,7 @@ class Expt:
         r = np.linalg.norm(rVec)
         F = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q * rVec / r**3
         return F
+    
     def _CoulPotential(self, p1, p2):
         #given two particle IDs/indices, returns the potential between them
         if p1 == p2:
@@ -132,6 +149,7 @@ class Expt:
         r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
         V = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q / r
         return V
+    
     def _LennForce(self, p1, p2):
         if p1==p2:
             return 0
@@ -139,12 +157,14 @@ class Expt:
         r = np.linalg.norm(rVec)
         F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
         return F
+   
     def _LennPotential(self, p1, p2):
         if p1 == p2:
             return 0
         r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
         V = -4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
         return V
+    
     
     def nextFrame(self):
         
@@ -157,22 +177,151 @@ class Expt:
             for p1 in range(self.numParticles):
                 for p2 in range(self.numParticles):
                     forces[p1] += self.forceBetween(p1, p2)
-
-                    if p1.overlapWith(p2, self.L):
-                        collisDict[p1] = p2
+                    
+#                     print(self.particles[p1])
+#                     print(self.particles[p1].overlapWith(self.particles[p2], self.L))
+#                     print(self.particles[p1].distFrom(self.particles[p2], self.L))
+                    
+                    if self.particles[p1].overlapWith(self.particles[p2], self.L):
+                        collisDict[p1] = self.particles[p2]
+            
+#             for p1 in self.particles:
+#                 for p2 in self.particles:
+#                     forces[p1] += self.forceBetween(p1, p2)
+                
+#                     if p1.overlapWith(p2, self.L):
+#                         collisDict[p1] = p2
         
         #move particles and apply forces afterwards, to allow simultaneity
         forceIter = iter(forces)
-        for p in self.particles:
+        for p in range(self.numParticles):
             if self.doCollisions and p in collisDict:
-                p.advance(self.dt, self.L, next(forceIter), collistDict[p])
+                self.particles[p].advance(self.dt, self.L, next(forceIter), collisDict[p])
                 try:
                     del collisDict[collisDict[p]]
                 except:
                     pass
             else:
-                p.advance(self.dt, self.L, next(forceIter))
+                self.particles[p].advance(self.dt, self.L, next(forceIter))
         self.t += self.dt
+    
+    
+    # NIKOLAS'S TEST CODE
+    def nextFrame1(self):
+        
+        #calculate forces in advance
+        forces = np.zeros_like(self.particlePositions)
+        collisDict = {}
+        forceIter = iter(forces)
+        
+        # Advance particles. Resolve collisions if necessary.
+        for i in range(self.numParticles):
+                
+            self.particles[i].advance1(self.dt, self.L, next(forceIter))
+                
+            for j in range(self.numParticles):
+                forces[i] += self.forceBetween(i, j)
+                    
+                if self.doCollisions and self.particles[i].overlapWith(self.particles[j], self.L):
+                    self.resolveCollision1(i, j)
+        
+        # Update the forces for the next frame (is it necessary to reassign forceIter?)
+        #forceIter = iter(forces)
+        
+#         for p in range(self.numParticles):
+#             self.particles[p].advance1(self.dt, self.L, next(forceIter))
+        
+#         if self.doCollisions:
+            
+#                 self.particles[p].advance(self.dt, self.L, next(forceIter), collisDict[p])
+#                 try:
+#                     del collisDict[collisDict[p]]
+#                 except:
+#                     pass
+#             else:
+#                self.particles[p].advance(self.dt, self.L, next(forceIter))
+        
+        self.t += self.dt
+    
+    
+    # NIKOLAS'S TEST CODE
+    def resolveCollision1(self, i, j):
+        """
+        Adjusts the positions and velocities of two particles that have just collided.
+        """
+        if i == j:
+            return
+        else:
+            p1 = self.particles[i]
+            p2 = self.particles[j]
+        
+            # Move disks so that they no longer overlap
+            self.adjustPositions(p1, p2)
+        
+            totalMass = p1.m + p2.m
+        
+            # Current velocities of the two disks
+            u1 = p1.v
+            u2 = p2.v
+        
+        # Update the velocities
+        p1.v = ((p1.m - p2.m) / totalMass) * u1 + (2 * p2.m / totalMass) * u2
+        
+        p2.v = (2 * p1.m / totalMass) * u1 + ((p2.m - p1.m) / totalMass) * u2
+    
+    # NIKOLAS'S TEST CODE
+    def adjustPositions(self, p1, p2):
+        """
+        Adjusts the positions of colliding particles so that they no longer overlap.
+        """
+        
+        # NEED A CASE TO HANDLE MULTIPLE SIMULTANEOUS COLLISIONS
+        
+        # Vector from the center of p1 to the center of p2
+        #rVect = p1.distFrom(p2, self.L)
+        def distance(p1, p2):
+            return np.linalg.norm(p1.x - p2.x)
+        
+        rVect = [p1.x[0] - p2.x[0], p1.x[1] - p2.x[1]]
+        
+        #[p1.x - p2.x if distance(p1, p2) < distance(p2, p1) else p2.x - p1.x]
+        
+        
+#         print(rVect)
+#         print(p1.x)
+#         print(p2.x)
+#         return
+    
+        # Distance from the center of p1 to the center of p2
+        d = np.linalg.norm(rVect)
+        
+        #print(d)
+        
+        # Distance by which p1 and p2 overlap
+        error = p1.r + p2.r - d
+        
+        # Angle between p1 and p2's position vectors
+        #θ = np.arctan(rVect)
+        
+        #print(rVect[0] / d)
+        #print(rVect[1] / d)
+        
+        # Vector of form [cosθ, sinθ], where θ is the angle between rVect and the horizontal
+        print(rVect)
+        cosSin = [rVect[0] / d, rVect[1] / d]
+        
+        correction = [(error / 2) * a for a in cosSin]
+        
+        p1.x += correction
+        p2.x -= correction
+        
+        #for p in self.particles:
+        #    if p1.overlapWith(p, self.L):
+        #        self.adjustPositions(p1, p)
+        
+        #np.linalg.norm(p1.distFrom(p2, self.L))
+        
+        
     
     @property
     def totalKE(self):
@@ -281,7 +430,7 @@ class Expt:
         self.updatectr = 0
 
         xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
-        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o')
+        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o', markersize=5)    # NIKOLAS: ADDED MARKERSIZE=3 ON 4/26
 
         _, _, bar_container = axs['B'].hist(self.getKEs(), HIST_BINS, lw=1,
                               ec="yellow", fc="green", alpha=0.5)
@@ -303,7 +452,7 @@ class Expt:
                 print ("[" + "████████████████████████████████"[:x-1] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r") #idea: create a dynamically sized progress bar depending on total number of steps that'll be taken, including maybe a 2D one that fills up intelligently :)
                 
             #update
-            self.nextFrame()
+            self.nextFrame1()
 
 
             self.updatectr += 1

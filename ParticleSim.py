@@ -5,7 +5,7 @@ from functools import total_ordering
 
 #TODO: 
 #
-#change distFrom to have a better name
+#
 #
 #
 #
@@ -15,7 +15,7 @@ from functools import total_ordering
 @total_ordering #allows us to only implement lt and eq, imply gt, etc.
 class Disk:
     def __init__(self, x:np.ndarray, v:np.ndarray, mass:float=3, 
-                 radius:float=5.0, charge:float=1.602e-3):
+                 radius:float=5.0, charge:float=1.602e-3, a=0):
         self.m = mass
         self.r = radius
         self.x = np.asarray(x) #x example: array([2, 4])
@@ -31,10 +31,10 @@ class Disk:
     
 #     def forceFrom(self, other, L):
 #         #calculates the force vector on self because of other
-#         r = self.distFrom(other, L)
+#         r = self.rVecFrom(other, L)
 #         return (self.COUL_FACTOR * self.q * other.q) * r / (np.linalg.norm(r)**3)
     
-    def distFrom(self, other, L):
+    def rVecFrom(self, other, L):
         r = self.x - other.x # not to be confused with self.r, the radius of a particle
         r[r > L/2] -= L
         r[r < -L/2] += L
@@ -42,7 +42,7 @@ class Disk:
     
     
     def overlapWith(self, other, L):
-        return np.linalg.norm(self.distFrom(other, L)) < (self.r + other.r)
+        return np.linalg.norm(self.rVecFrom(other, L)) < (self.r + other.r)
     
     
     def advance(self, dt:float, L, F, collidingDisk=False):
@@ -154,7 +154,7 @@ class Expt:
         if p1 == p2: # in future, maybe change to if p1.friendsWith(p2) and
                      # have particles have a friends list who they don't push
             return 0
-        rVec = self.particles[p1].distFrom(self.particles[p2], self.L)
+        rVec = self.particles[p1].rVecFrom(self.particles[p2], self.L)
         r = np.linalg.norm(rVec)
         F = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q * rVec / r**3
         return F
@@ -163,14 +163,14 @@ class Expt:
         #given two particle IDs/indices, returns the potential between them
         if p1 == p2:
             return 0
-        r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
+        r = np.linalg.norm(self.particles[p1].rVecFrom(self.particles[p2], self.L))
         V = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q / r
         return V
     
     def _LennForce(self, p1, p2):
         if p1==p2:
             return 0
-        rVec = self.particles[p1].distFrom(self.particles[p2], self.L)
+        rVec = self.particles[p1].rVecFrom(self.particles[p2], self.L)
         r = np.linalg.norm(rVec)
         F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
         return F
@@ -178,7 +178,7 @@ class Expt:
     def _LennPotential(self, p1, p2):
         if p1 == p2:
             return 0
-        r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
+        r = np.linalg.norm(self.particles[p1].rVecFrom(self.particles[p2], self.L))
         V = -4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
         return V
     
@@ -197,7 +197,7 @@ class Expt:
                     
 #                     print(self.particles[p1])
 #                     print(self.particles[p1].overlapWith(self.particles[p2], self.L))
-#                     print(self.particles[p1].distFrom(self.particles[p2], self.L))
+#                     print(self.particles[p1].rVecFrom(self.particles[p2], self.L))
                     
                     if self.particles[p1].overlapWith(self.particles[p2], self.L):
                         collisDict[p1] = self.particles[p2]
@@ -295,33 +295,18 @@ class Expt:
         # NEED A CASE TO HANDLE MULTIPLE SIMULTANEOUS COLLISIONS
         
         # Vector from the center of p1 to the center of p2
-        #rVect = p1.distFrom(p2, self.L)
+        #rVect = p1.rVecFrom(p2, self.L)
         def distance(p1, p2):
             return np.linalg.norm(p1.x - p2.x)
         
-        rVect = [p1.x[0] - p2.x[0], p1.x[1] - p2.x[1]]
+        rVect = p1.rVecFrom(p2,self.L)
         
-        #[p1.x - p2.x if distance(p1, p2) < distance(p2, p1) else p2.x - p1.x]
-        
-        
-#         print(rVect)
-#         print(p1.x)
-#         print(p2.x)
-#         return
     
         # Distance from the center of p1 to the center of p2
         d = np.linalg.norm(rVect)
         
-        #print(d)
-        
         # Distance by which p1 and p2 overlap
         error = p1.r + p2.r - d
-        
-        # Angle between p1 and p2's position vectors
-        #θ = np.arctan(rVect)
-        
-        #print(rVect[0] / d)
-        #print(rVect[1] / d)
         
         # Vector of form [cosθ, sinθ], where θ is the angle between rVect and the horizontal
         print(rVect)
@@ -331,14 +316,6 @@ class Expt:
         
         p1.x += correction
         p2.x -= correction
-        
-        #for p in self.particles:
-        #    if p1.overlapWith(p, self.L):
-        #        self.adjustPositions(p1, p)
-        
-        #np.linalg.norm(p1.distFrom(p2, self.L))
-        
-        
     
     @property
     def totalKE(self):
@@ -378,66 +355,16 @@ class Expt:
     def getKEs(self):
         #Returns a list of the particles' potential energies in the current frame.
         return [p.KE for p in self.particles]
-
+        
     def showAnimation(self, addlTitle=""):
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2)              # create the figure
-        ax1.set_xlim(0,self.L)              # and adjust axes limits and labels
-        ax1.set_ylim(0,self.L)
-        ax1.set_title(self.t)
-        #TODO: change ax2 axes, title
-        HIST_BINS = np.linspace(0, 1000, 100)
-        self.updatectr = 0
-        
-        xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
-        points, = ax1.plot(xvar,np.ones_like(xvar), 'o')
-
-        _, _, bar_container = ax2.hist(self.getKEs(), HIST_BINS, lw=1,
-                              ec="yellow", fc="green", alpha=0.5)
-        
-        def frame(_):
-            #animate
-            points.set_data(np.transpose(self.particlePositions))
-            title = ax1.set_title(addlTitle + "t = {:0.2f}".format(self.t))
-            
-            if self.updatectr % self.updateGraphsEvery == 0:
-                
-                #histogram
-                n, _ = np.histogram(self.getKEs(), HIST_BINS)
-                for count, rect in zip(n, bar_container.patches):
-                    rect.set_height(count)
-                
-                #progress bar
-                x = int(np.floor(32*self.t/self.tmax)+1)
-                print ("[" + "█████████████████████████████████"[:x] + "▄"*(x<=32) + 
-                       "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r")
-            
-            #update
-            self.nextFrame()
-            
-            
-            self.updatectr += 1
-            return points, bar_container.patches, title 
-
-        #somewhat glitchy display. IDK how best to fix.
-        ani = FuncAnimation(fig, frame, np.arange(self.t,self.tmax,self.dt), 
-                            interval=self.dt*1000/self.animSpeed, blit=True,
-                           repeat=False)
-        print("bouta save animation...")
-        ani.save("particleAnimation.gif")
-        plt.close()
-        print("")
-        print("finished animating!")
-        
-        
-    def showAnimation1(self, addlTitle=""):
         
         print("initializing experiment... ")
         
         fig, axs = plt.subplot_mosaic(
             """
-            AABC
-            AADE
+            AABB
+            AACC
+            DDDD
             """)              # create the figure
         axs['A'].set_xlim(0,self.L)              # and adjust axes limits and labels
         axs['A'].set_ylim(0,self.L)
@@ -447,7 +374,7 @@ class Expt:
         self.updatectr = 0
 
         xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
-        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o', markersize=5)    # NIKOLAS: ADDED MARKERSIZE=3 ON 4/26
+        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o', markersize=8)    # NIKOLAS: ADDED MARKERSIZE=3 ON 4/26
 
         _, _, bar_container = axs['B'].hist(self.getKEs(), HIST_BINS, lw=1,
                               ec="yellow", fc="green", alpha=0.5)

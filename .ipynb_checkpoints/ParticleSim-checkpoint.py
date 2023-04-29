@@ -179,14 +179,17 @@ class Expt:
             return 0
         rVec = self.particles[p1].distFrom(self.particles[p2], self.L)
         r = np.linalg.norm(rVec)
-        F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
+        #F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
+        
+        F = 24 * self.eps * (-2 * (self.sig / r)**12 + (self.sig / r)**6) * rVec / r**2
+        
         return F
    
     def _LennPotential(self, p1, p2):
         if p1 == p2:
             return 0
         r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
-        V = -4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
+        V = 4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
         return V
     
     

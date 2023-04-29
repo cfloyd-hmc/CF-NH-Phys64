@@ -20,10 +20,13 @@ class Disk:
         self.r = radius
         self.x = np.asarray(x) #x example: array([2, 4])
         self.v = np.asarray(v) #v example: array([1.2, -2])
-        if a:
-            self.a = np.asarray(a)
-        else: #by default, acceleration initializes to zeros
-            self.a = np.zeros_like(x)
+
+        # NIKOLAS NOTE TO SELF: ASK CONOR ABOUT THIS
+#        if a:
+#             self.a = np.asarray(a)
+#         else: #by default, acceleration initializes to zeros
+#             self.a = np.zeros_like(x)
+
         self.nDim = len(self.x)
         if self.nDim != len(self.v):
             raise Exception("Dimensions of velocity and position lists do not match.")
@@ -71,8 +74,14 @@ class Disk:
         self.x += self.v * dt
         self.x = self.x % L
         
+        # update acceleration
+        self.a = F/self.m
+        
+        # update velocity
+        self.v += (self.a/2)*dt
+        
         # Apply force (update velocity)
-        self.v += F * (dt / self.m)
+        #self.v += F * (dt / self.m)
         
     
     def resolveCollision(self, collidingDisk):
@@ -85,8 +94,6 @@ class Disk:
         self.v = ((self.m - collidingDisk.m) / totalMass) * u1 + (2 * collidingDisk.m / totalMass) * u2
         
         collidingDisk.v = (2 * self.m / totalMass) * u1 + ((collidingDisk.m - self.m) / totalMass) * u2
-        
-        #self.v *= -1 #this is not great, but it's what we got right now.
         
     
     #allowing comparisons between disk
@@ -225,38 +232,29 @@ class Expt:
     
     # NIKOLAS'S TEST CODE
     def nextFrame1(self):
+        """
+        Applies forces to particles and moves them accordingly, resolving collisions if necessary.
+        """
         
-        #calculate forces in advance
         forces = np.zeros_like(self.particlePositions)
-        collisDict = {}
+        
+        # Compute forces between particles
+        for i in range(self.numParticles):
+            for j in range(self.numParticles):    
+                forces[i] += self.forceBetween(i, j)
+        
         forceIter = iter(forces)
         
-        # Advance particles. Resolve collisions if necessary.
-        for i in range(self.numParticles):
-                
+        # Advance the particles
+        for i in range(self. numParticles):
+            
             self.particles[i].advance1(self.dt, self.L, next(forceIter))
-                
+            
+            # Resolve collisions as needed
             for j in range(self.numParticles):
-                forces[i] += self.forceBetween(i, j)
-                    
+                
                 if self.doCollisions and self.particles[i].overlapWith(self.particles[j], self.L):
                     self.resolveCollision1(i, j)
-        
-        # Update the forces for the next frame (is it necessary to reassign forceIter?)
-        #forceIter = iter(forces)
-        
-#         for p in range(self.numParticles):
-#             self.particles[p].advance1(self.dt, self.L, next(forceIter))
-        
-#         if self.doCollisions:
-            
-#                 self.particles[p].advance(self.dt, self.L, next(forceIter), collisDict[p])
-#                 try:
-#                     del collisDict[collisDict[p]]
-#                 except:
-#                     pass
-#             else:
-#                self.particles[p].advance(self.dt, self.L, next(forceIter))
         
         self.t += self.dt
     

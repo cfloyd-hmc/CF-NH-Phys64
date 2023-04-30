@@ -146,7 +146,7 @@ class Expt:
             self.forceBetween = lambda p1, p2: self._CoulForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._CoulPotential(p1, p2)
         elif potentialType == "Lenn":
-            self.eps = 500 #epsilon, from Lennard-Jones formula
+            self.eps = 10000 #epsilon, from Lennard-Jones formula
             self.sig = 15 #sigma, from Lennard-Jones formula
             self.forceBetween = lambda p1, p2: self._LennForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._LennPotential(p1, p2)
@@ -184,11 +184,11 @@ class Expt:
         F = 24 * self.eps * (-2 * (self.sig / r)**12 + (self.sig / r)**6) * rVec / r**2
         
         return F
-   
+    
     def _LennPotential(self, p1, p2):
         if p1 == p2:
             return 0
-        r = np.linalg.norm(self.particles[p1].distFrom(self.particles[p2], self.L))
+        r = np.linalg.norm(self.particles[p1].rVecFrom(self.particles[p2], self.L))
         V = 4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
         return V
     

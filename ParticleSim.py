@@ -119,7 +119,7 @@ class Disk:
 class Expt:
     def __init__(self, particles, dt:float=0.1, t_0:float=0, 
                  tmax:float=15, L:float=200, animSpeed:float=1,
-                updateGraphsEvery:int=5, doCollisions=True, potentialType="Coul"):
+                updateGraphsEvery:int=5, doCollisions=True, potentialType="Coul", cool = False):
         # pPositions example: [ [1, 3], [2, 2] ]: two particles, at (1,3) and (2,2)
         
         #set member variables
@@ -140,14 +140,20 @@ class Expt:
         #make the box bounds
         self.L = L
         
+        # Tells us if the system cools over time
+        self.cool = cool
+        
+        # Number of times that we have cooled the system
+        self.coolCount = 0
+        
         #set potential energy function depending on user input
         if potentialType == "Coul":
             self.COUL_FACTOR = 8.988e9
             self.forceBetween = lambda p1, p2: self._CoulForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._CoulPotential(p1, p2)
         elif potentialType == "Lenn":
-            self.eps = 10000 #epsilon, from Lennard-Jones formula
-            self.sig = 15 #sigma, from Lennard-Jones formula
+            self.eps = 10 #10000 #epsilon, from Lennard-Jones formula
+            self.sig = 20 #15 #sigma, from Lennard-Jones formula
             self.forceBetween = lambda p1, p2: self._LennForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._LennPotential(p1, p2)
         else:
@@ -181,7 +187,7 @@ class Expt:
         r = np.linalg.norm(rVec)
         #F = 24 * self.eps * (2*(self.sig/r)**12-(self.sig/r)**6) * rVec / r**3
         
-        F = 24 * self.eps * (-2 * (self.sig / r)**12 + (self.sig / r)**6) * rVec / r**2
+        F = 24 * self.eps * (-2 * (self.sig / r)**12 + (self.sig / r)**6) * (-rVec) / r**2
         
         return F
     
@@ -396,6 +402,12 @@ class Expt:
                 x = int(np.floor(32*self.t/self.tmax)+1)
                 print ("[" + "████████████████████████████████"[:x-1] + "▄"*(x<32) + "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"[x:] + "]  ", end="\r") #idea: create a dynamically sized progress bar depending on total number of steps that'll be taken, including maybe a 2D one that fills up intelligently :)
                 
+                # Cool the system by removing kinetic energy
+                if self.cool and self.coolCount < 3:
+                    for p in self.particles:
+                        p.v *= (1/1.71)
+                    self.coolCount += 1
+                
             #update
             self.nextFrame1()
 
@@ -412,3 +424,5 @@ class Expt:
         print("\nfinished animating!")
         plt.close()
         
+    
+    

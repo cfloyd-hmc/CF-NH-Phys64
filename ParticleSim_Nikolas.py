@@ -78,8 +78,8 @@ class Disk:
 
 class Expt:
     def __init__(self, particles, dt:float=0.1, t_0:float=0, 
-                 tmax:float=15, L:float=200, animSpeed:float=1,
-                updateGraphsEvery:int=5, doCollisions=True, potentialType="Coul",
+                 tmax:float=15, L:float=50, animSpeed:float=1,
+                updateGraphsEvery:int=5, doCollisions=True, potentialType="Lenn",
                 manPotential=None, manForce=None, cool = False):
         # pPositions example: [ [1, 3], [2, 2] ]: two particles, at (1,3) and (2,2)
         
@@ -113,8 +113,8 @@ class Expt:
             self.forceBetween = lambda p1, p2: self._CoulForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._CoulPotential(p1, p2)
         elif potentialType == "Lenn":
-            self.eps = 10 #10000 #epsilon, from Lennard-Jones formula
-            self.sig = 20 #15 #sigma, from Lennard-Jones formula
+            self.eps = 1 #10000 #epsilon, from Lennard-Jones formula
+            self.sig = 25 #15 #sigma, from Lennard-Jones formula
             self.forceBetween = lambda p1, p2: self._LennForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._LennPotential(p1, p2)
         elif potentialType == "Man": #manually (user-inputted) force/potential

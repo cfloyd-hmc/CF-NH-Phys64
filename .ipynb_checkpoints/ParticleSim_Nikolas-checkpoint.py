@@ -47,10 +47,6 @@ class Disk:
 #                 print("left wall hit",self.x,self.v)
                 self.x[i] *= -1
                 self.v[i] *= -1
-                
-#         wallhits = self.x[self.x % L != self.x]
-#         if wallhits: print(wallhits)
-#         wallhits = 2*L - wallhits
         
         # update acceleration
         olda = np.copy(self.a)
@@ -58,17 +54,6 @@ class Disk:
         
         # update velocity
         self.v += (olda+self.a)/2 * dt
-    
-    def resolveCollision(self, collidingDisk):
-        totalMass = self.m + collidingDisk.m
-        
-        # Initial velocities of the two disks
-        u1 = self.v
-        u2 = collidingDisk.v
-        
-        self.v = ((self.m - collidingDisk.m) / totalMass) * u1 + (2 * collidingDisk.m / totalMass) * u2
-        
-        collidingDisk.v = (2 * self.m / totalMass) * u1 + ((collidingDisk.m - self.m) / totalMass) * u2
         
     
     #allowing comparisons between disk
@@ -140,24 +125,6 @@ class Expt:
             self.forceBetween = lambda p1, p2: 0
             self.potentialBetween = lambda p1, p2: 0
     
-    def _CoulForce(self, p1, p2):
-        #given two particle IDs/indices, returns the force between them
-        if p1 == p2: # in future, maybe change to if p1.friendsWith(p2) and
-                     # have particles have a friends list who they don't push
-            return 0
-        rVec = self.particles[p1].rVecFrom(self.particles[p2])
-        r = np.linalg.norm(rVec)
-        F = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q * rVec / r**3
-        return F
-    
-    def _CoulPotential(self, p1, p2):
-        #given two particle IDs/indices, returns the potential between them
-        if p1 == p2:
-            return 0
-        r = np.linalg.norm(self.particles[p1].rVecFrom(self.particles[p2]))
-        V = self.COUL_FACTOR * self.particles[p1].q * self.particles[p2].q / r
-        return V
-    
     def _LennForce(self, p1, p2):
         if p1==p2:
             return 0
@@ -199,8 +166,7 @@ class Expt:
         
         self.t += self.dt
     
-    
-    # NIKOLAS'S TEST CODE
+
     def resolveCollision1(self, i, j):
         """
         Adjusts the positions and velocities of two particles that have just collided.
@@ -225,30 +191,6 @@ class Expt:
 
         p2.v = (2 * p1.m / totalMass) * u1 + ((p2.m - p1.m) / totalMass) * u2
     
-    # NIKOLAS'S TEST CODE
-    def adjustPositions(self, p1, p2):
-        """
-        Adjusts the positions of colliding particles so that they no longer overlap.
-        """
-        
-        # NEED A CASE TO HANDLE MULTIPLE SIMULTANEOUS COLLISIONS
-        
-        rVec = p1.rVecFrom(p2)
-        
-        # Distance from the center of p1 to the center of p2
-        d = np.linalg.norm(rVec)
-        
-        # Distance by which p1 and p2 overlap
-        error = p1.r + p2.r - d
-        
-        # Vector of form [cosθ, sinθ], where θ is the angle between rVect and the horizontal
-#         print(rVec)
-        cosSin = [rVec[0] / d, rVect[1] / d]
-        
-        correction = [(error / 2) * a for a in cosSin]
-        
-        p1.x += correction
-        p2.x -= correction
     
     @property
     def totalKE(self):
@@ -282,12 +224,10 @@ class Expt:
     def particlePositions(self):
         return np.array([p.x for p in self.particles])
     
-    #idea: makeCopy() function that makes an identical experiment - might be useful to
-    #let us go to further times or something? idk
-    
     def getKEs(self):
-        #Returns a list of the particles' potential energies in the current frame.
+        #Returns a list of the particles' kinetic energies in the current frame.
         return [p.KE for p in self.particles]
+        
         
     def showAnimation(self, addlTitle=""):
         
@@ -324,6 +264,7 @@ class Expt:
             
             # Line plot of total energy
             self.E_tot += [self.totalE]
+            print(self.E_tot)
             line = axs['C'].plot(np.linspace(0, self.t, self.updatectr + 1), self.E_tot)
             
             #graphs
@@ -357,4 +298,9 @@ class Expt:
                            repeat=False)
         ani.save("particleAnimation.gif")
         print("\nfinished animating!")
+        
+        print("Potential Energy: " + str(self.totalPE))
+        print("Kinetic Energy: " + str(self.totalKE))
+        print("Total Energy: " + str(self.totalE))
+        
         plt.close()

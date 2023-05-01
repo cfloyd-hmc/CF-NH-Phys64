@@ -29,7 +29,6 @@ class Disk:
     def overlapWith(self, other):
         return np.linalg.norm(self.rVecFrom(other)) < (self.r + other.r)
     
-    
     def advance(self, dt:float, L, F):
         
         oldx = np.copy(self.x)
@@ -88,7 +87,7 @@ class Disk:
     @property
     def KE(self):
         return (1/2)*self.m*(self.speed**2)
-    
+
 class Expt:
     def __init__(self, particles, dt:float=0.1, t_0:float=0, 
                  tmax:float=15, L:float=200, animSpeed:float=1,
@@ -304,7 +303,7 @@ class Expt:
         self.updatectr = 0
 
         xvar = np.linspace(0.1,self.L-0.1,self.numParticles) #temporary variable
-        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o', markersize=8) #particle positions
+        points, = axs['A'].plot(xvar,np.ones_like(xvar), 'o', markersize=8)
 
         _, _, bar_container = axs['B'].hist(self.getKEs(), HIST_BINS, lw=1,
                               ec="yellow", fc="green", alpha=0.5)

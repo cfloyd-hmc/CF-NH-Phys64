@@ -131,7 +131,7 @@ class Expt:
         rVec = self.particles[p1].rVecFrom(self.particles[p2])
         r = np.linalg.norm(rVec)
         
-        F = 24 * self.eps * (2 * (self.sig / r)**12 - (self.sig / r)**6) * rVec / r**2
+        F = self.eps * ((self.sig / r)**12 - (self.sig / r)**6) * rVec / r**2
         
         return F
     
@@ -139,7 +139,7 @@ class Expt:
         if p1 == p2:
             return 0
         r = np.linalg.norm(self.particles[p1].rVecFrom(self.particles[p2]))
-        V = 4*self.eps*((self.sig/r)**12-(self.sig/r)**6)
+        V = (self.eps / 12) *((self.sig/r)**12 - 2 * (self.sig/r)**6)
         return V
     
     
@@ -147,7 +147,6 @@ class Expt:
         
         #calculate forces in advance
         forces = np.zeros_like(self.particlePositions)
-        collisDict = {}
         
         #detect and store
         for p1 in range(self.numParticles):
@@ -155,13 +154,10 @@ class Expt:
                 f = self.forceBetween(p1, p2)
                 forces[p1] += f
                 forces[p2] -= f
-                if self.doCollisions and self.particles[p1].overlapWith(self.particles[p2]):
-                    collisDict[p1] = self.particles[p2]
+        
         forceIter = iter(forces)
         
         for p in range(self.numParticles):
-            if self.doCollisions and p in collisDict: 
-                self.resolveCollision1(p, collisDict[p])
             self.particles[p].advance(self.dt, self.L, next(forceIter))
         
         self.t += self.dt
@@ -264,7 +260,6 @@ class Expt:
             
             # Line plot of total energy
             self.E_tot += [self.totalE]
-            print(self.E_tot)
             line = axs['C'].plot(np.linspace(0, self.t, self.updatectr + 1), self.E_tot)
             
             #graphs
@@ -298,9 +293,5 @@ class Expt:
                            repeat=False)
         ani.save("particleAnimation.gif")
         print("\nfinished animating!")
-        
-        print("Potential Energy: " + str(self.totalPE))
-        print("Kinetic Energy: " + str(self.totalKE))
-        print("Total Energy: " + str(self.totalE))
         
         plt.close()

@@ -162,32 +162,6 @@ class Expt:
         
         self.t += self.dt
     
-
-    def resolveCollision1(self, i, j):
-        """
-        Adjusts the positions and velocities of two particles that have just collided.
-        """
-        if i == j:
-            return
-        else:
-            p1 = self.particles[i]
-            p2 = self.particles[j]
-        
-            # Move disks so that they no longer overlap
-            self.adjustPositions(p1, p2)
-        
-            totalMass = p1.m + p2.m
-        
-            # Current velocities of the two disks
-            u1 = p1.v
-            u2 = p2.v
-        
-        # Update the velocities
-        p1.v = ((p1.m - p2.m) / totalMass) * u1 + (2 * p2.m / totalMass) * u2
-
-        p2.v = (2 * p1.m / totalMass) * u1 + ((p2.m - p1.m) / totalMass) * u2
-    
-    
     @property
     def totalKE(self):
         return sum(self.getKEs())

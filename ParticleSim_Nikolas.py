@@ -114,7 +114,7 @@ class Expt:
             self.potentialBetween = lambda p1, p2: self._CoulPotential(p1, p2)
         elif potentialType == "Lenn":
             self.eps = 1 #10000 #epsilon, from Lennard-Jones formula
-            self.sig = 25 #15 #sigma, from Lennard-Jones formula
+            self.sig = 15 #15 #sigma, from Lennard-Jones formula
             self.forceBetween = lambda p1, p2: self._LennForce(p1, p2)
             self.potentialBetween = lambda p1, p2: self._LennPotential(p1, p2)
         elif potentialType == "Man": #manually (user-inputted) force/potential

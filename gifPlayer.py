@@ -43,7 +43,7 @@ class AnimatedGif(tk.Label):
 if __name__ == '__main__':
     root = tk.Tk()
 
-    anim = AnimatedGif(root, 'particleAnimation.gif', 10000)
+    anim = AnimatedGif(root, 'LJ.gif', 10000)
     anim.pack()
 
     def pause_unpause():

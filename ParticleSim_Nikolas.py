@@ -223,8 +223,9 @@ class Expt:
                               ec="yellow", fc="green", alpha=0.5)
         
         # Line graph of total energy
-        self.E_tot = []
-        lines = axs['C'].plot([], self.E_tot)
+        tvar = np.arange(0, self.tmax, self.dt)
+        historicE = np.zeros_like(tvar)
+        Eline, = axs['C'].plot(tvar, historicE, 'r-')
         
         print("starting simulation... ")
         def frame(_):
@@ -234,7 +235,7 @@ class Expt:
             
             # Line plot of total energy
             self.E_tot += [self.totalE]
-            line = axs['C'].plot(np.linspace(0, self.t, self.updatectr + 1), self.E_tot)
+            Eline.set_data()
             
             #graphs
             if self.updatectr % self.updateGraphsEvery == 0:

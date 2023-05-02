@@ -1,5 +1,6 @@
 from PIL import Image, ImageTk, ImageSequence
 import tkinter as tk
+import sys
 
 class AnimatedGif(tk.Label):
     def __init__(self, master, filename, duration, **kwargs):
@@ -43,7 +44,7 @@ class AnimatedGif(tk.Label):
 if __name__ == '__main__':
     root = tk.Tk()
 
-    anim = AnimatedGif(root, 'LJ.gif', 10000)
+    anim = AnimatedGif(root, sys.argv[1], 10000)
     anim.pack()
 
     def pause_unpause():

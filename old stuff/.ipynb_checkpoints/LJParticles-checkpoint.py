@@ -7,11 +7,36 @@ from functools import total_ordering
 from numpy.random import default_rng
 
 class LJParticles:
+    """
+    Description of Parameters:
+    
+        Boundary
+    Lx, Ly: box dimensions
+    
+        Time
+    dt: time step
+    tmax: duration of simulation
+    dispEvery: number of time steps to be calculated per frame saved
+    
+        Initialization
+    nx, ny: number of particles in initialized rectangular lattice (numParticles = nx * ny)
+    initialKE: initial kinetic energy per particle
+    rng_seed: used to randomly initialize velocities
+    
+        Cooling
+    cool: if True, system will cool. if False, it won't.
+    cool_every: number of time steps to be calculated between cooling steps
+    cool_startT: time before which no cooling will happen (to allow equilibration)
+    cool_endT: time after which no cooling will happen (to allow equilibration)
+    cool_factor: factor by which kinetic energy is multiplied during cooling steps
+    """
+    
     def __init__(self, nx = 2, ny = 2, Lx = 4, Ly = 4, initialKE = 0, dt = 0.01, tmax = 5, 
-                 dispEvery = 1, rng_seed = 42, cool = False, cool_every=200, 
-                 cool_startT=1, cool_endT=2, cool_factor=0.9):
+                 dispEvery = 10, rng_seed = 42, cool = False, cool_every=200, 
+                 cool_startT=1, cool_endT=100, cool_factor=0.9):
         """
-        Initializes a Lennard-Jones molecular dynamics simulation.
+        Initializes a Lennard-Jones molecular dynamics simulation, 
+        with epsilon = 1, sigma = 1 and particle mass = 1
         """
         
         self.rng = default_rng(seed = rng_seed)
@@ -63,9 +88,6 @@ class LJParticles:
         self.histPE = []
         self.histKE = []
         
-        # Remember temperature
-#         self.histTemp = []
-        
         # Tells us if system cools over time
         self.cool = cool
         
@@ -115,9 +137,10 @@ class LJParticles:
     def applyBC(self, i):
         """
         Updates particle i according to hard-wall boundary conditions.
+        Only corrects velocity, not position.
         """
-        #note: current implementation not perfectly physical, as it may 
-        #"slow time" for particles who bounce.
+        
+        #commented-out lines are for different wall-hit resolution strategies.
         if self.x[i] > self.Lx:
 #             self.y[i] -= (self.Lx-self.x[i]) * (self.vy[i] / self.vx[i])
 #             self.x[i] = self.Lx
@@ -140,11 +163,10 @@ class LJParticles:
             self.vy[i] = abs(self.vy[i])
             self.hitWall = True
     
-    
     def setRectangularLattice(self):
         """
         Arranges the particles on an nx by ny rectangular lattice.
-        Particles are offset from the edges by 1 unit.
+        Particles are offset from the walls by 1 unit.
         """
         
         # Horizontal and vertical spacings
@@ -157,7 +179,6 @@ class LJParticles:
                 i = ix + iy * self.ny
                 self.x[i] = 1 + dx * ix
                 self.y[i] = 1 + dy * iy
-                
     
     def computeAcceleration(self):
         """
@@ -173,7 +194,7 @@ class LJParticles:
         
         # For any two particles...
         for i in range(N):
-            for j in range(i + 1, N): #Conor's note: I think this could just be range(i)
+            for j in range(i + 1, N):
                 
                 # Find the separations
                 dx = self.x[i] - self.x[j]
@@ -200,12 +221,10 @@ class LJParticles:
                 totalPE += 4 * (oneOverR6**2 - oneOverR6)
         return totalPE
                 
-    
-    
     def advance(self):
         """
         Advances the simulation by one time step. Velocity is updated using the average of old and
-        new acceleration
+        new acceleration (Verlet algorithm).
         """
         N = self.N
         halfdt = 0.5 * self.dt
@@ -226,7 +245,6 @@ class LJParticles:
             
         totalPE = self.computeAcceleration()
         
-        
         # Update with new acceleration
         for i in range(N):
             self.vx[i] += self.ax[i] * halfdt
@@ -246,8 +264,8 @@ class LJParticles:
         
         tempKE *= 0.5
         
-        #force energy to be conserved by scaling kinetic energy, then 
-        #Compute the system's kinetic energy after correction
+        # Require total energy to be conserved by scaling kinetic energy, then 
+        # compute the system's kinetic energy after correction
         
         if self.hitWall:
             velocityScaleFactor = ((self.histPE[-1] + self.histKE[-1] - totalPE) / tempKE) ** .5
@@ -264,10 +282,9 @@ class LJParticles:
         
         totalKE *= 0.5
         
+        #remember potential and kinetic energies to be plotted
         self.histPE.append(totalPE)
         self.histKE.append(totalKE)
-#         temp = totalKE / N
-#         self.histTemp.append(temp)
         
         # We've advanced 1 time step
         self.steps += 1
@@ -286,7 +303,7 @@ class LJParticles:
             
     def saveAnimation(self, filename="LJ"):
         """
-        Creates an animation of our Lennard-Jones system.
+        Creates an animation of our Lennard-Jones system and saves it to [filename].gif
         """
         
         fig, ax = plt.subplots()
